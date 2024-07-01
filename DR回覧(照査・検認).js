@@ -595,69 +595,86 @@ http://meie2eb6/redmine/issues/${ViewCustomize["context"]["issue"]["id"]}
 
         // 「差し戻し」ボタン押下
         $(".move-back-status").on("click", function() {
-            var NextStatusId;
+            const dialoghtml = `
+            <div id="status-move-back-dialog" style="padding:20px;">
+                <textarea id="move-back-instruction" placeholder="差し戻しコメント" style="display:block; width:100%;"></textarea>
+            </div>
+            `;
+            $(dialoghtml).dialog({
+                modal:true,
+                title:"差し戻し",
+                width:500,
+                buttons: {
+                    "OK": function() {
+                        console.log("OK")
+                        let NextStatusId;
 
-            // 記入->指摘確認->指摘処置中->処置確認->照査1->照査2->検認->完了
-            switch (CurrentStatusStr) {
-                case "照査1":
-                case "照査2":
-                case "検認":
-                    NextStatusId = 11; // 処置確認」へ戻る
-                    break;
-            }
-            var send_data = {
-                "issue": {
-                    "status_id": NextStatusId
-                }
-            };
-
-            $.ajax({
-                headers: { 'X-Redmine-API-Key': ViewCustomize["context"]["user"]["apiKey"] },
-                type: "PUT",
-                url: location.pathname + ".json",
-                dataType: "json",
-                async: false,
-                contentType: 'application/json',
-                data: JSON.stringify(send_data),
-                success: function(data) {
-                    // 差し戻しメール通知
-                    Subject = "[差し戻し]";
-                    Subject += $(".cf_7 .value").text(); // 工程
-                    Subject += " " + $(".subject h3").text(); // チケット名
-                    Content = `
+                        // 記入->指摘確認->指摘処置中->処置確認->照査1->照査2->検認->完了
+                        switch (CurrentStatusStr) {
+                            case "照査1":
+                            case "照査2":
+                            case "検認":
+                                NextStatusId = 11; // 処置確認」へ戻る
+                                break;
+                        }
+                        var send_data = {
+                            "issue": {
+                                "status_id": NextStatusId,
+                                "notes": "[差し戻し]\n" + $("#move-back-instruction").val()
+                            }
+                        };
+            
+                        $.ajax({
+                            headers: { 'X-Redmine-API-Key': ViewCustomize["context"]["user"]["apiKey"] },
+                            type: "PUT",
+                            url: location.pathname + ".json",
+                            dataType: "json",
+                            async: false,
+                            contentType: 'application/json',
+                            data: JSON.stringify(send_data),
+                            success: function(data) {
+                                // 差し戻しメール通知
+                                Subject = "[差し戻し]";
+                                Subject += $(".cf_7 .value").text(); // 工程
+                                Subject += " " + $(".subject h3").text(); // チケット名
+                                Content = `
 ${IssueCreater["lastname"]} ${IssueCreater["firstname"]} さん
 
 ${CurrentUser["lastname"]} ${CurrentUser["firstname"]} さんが差し戻しました。
 
-詳細は別途お伝えします。
+【コメント】
+${$("#move-back-instruction").val()}
 
 http://meie2eb6/redmine/issues/${ViewCustomize["context"]["issue"]["id"]}
 
 
 以上
 `;
-
-                    $.ajax({
-                        type: "POST",
-                        url: "/redmine_tools/mail.php",
-                        dataType: "json",
-                        data: {
-                            "to": IssueCreater["mail"],
-                            "from": CurrentUser["mail"],
-                            "name": CurrentUser["lastname"] + CurrentUser["firstname"],
-                            "cc": CurrentUser["mail"],
-                            "subject": Subject,
-                            "content": Content
-                        }
-                    });
+            
+                                $.ajax({
+                                    type: "POST",
+                                    url: "/redmine_tools/mail.php",
+                                    dataType: "json",
+                                    data: {
+                                        "to": IssueCreater["mail"],
+                                        "from": CurrentUser["mail"],
+                                        "name": CurrentUser["lastname"] + CurrentUser["firstname"],
+                                        "cc": CurrentUser["mail"],
+                                        "subject": Subject,
+                                        "content": Content
+                                    }
+                                });
+                            }
+                        });
+                        $(this).dialog("destroy");
+                        location.reload();
+                        alert("ステータスを更新しました");
+                    },
+                    "キャンセル": function() {
+                        $(this).dialog("destroy");
+                    }
                 }
             });
-
-
-            alert("ステータスを更新しました");
-            location.reload();
-
         });
     }
 });
-
